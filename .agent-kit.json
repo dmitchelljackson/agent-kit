@@ -1,0 +1,6 @@
+{
+  "role": "kit",
+  "project": "agent-kit",
+  "wiki": "wiki",
+  "agents": ["claude", "codex", "opencode"]
+}
