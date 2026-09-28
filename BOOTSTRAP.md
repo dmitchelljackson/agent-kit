@@ -61,6 +61,11 @@ install what they pick:
 akit install <page> [-r]
 ```
 
+Offer the page templates too (`akit kit ls` shows them under `templates/`): `ticket` (in-repo work
+tracking), `bdd` (acceptance cases), `setup` (owner-run service setup), `tool`. `source` is installed
+by default. If the owner tracks work in Jira, GitHub Issues, or Linear, still install `ticket` and use
+its `external` field; the external system stays the source of truth for status.
+
 Pages with a `bookmark` come with their bookmark. Mention each bookmark to the owner; remove any
 they don't want with `akit bookmark rm <page>`.
 

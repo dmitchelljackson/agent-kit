@@ -1,0 +1,24 @@
+{
+  "description": "Numbered Given/When/Then acceptance cases for one screen or feature.",
+  "path": "behavior/{slug}",
+  "key": {
+    "prefix": "F-",
+    "pad": 2,
+    "step": 1
+  },
+  "fields": {
+    "status": {
+      "type": "enum",
+      "values": [
+        "DRAFT",
+        "LOCKED"
+      ],
+      "default": "DRAFT"
+    },
+    "ui_sources": {
+      "type": "string",
+      "multiple": true,
+      "help": "paths or URLs of the design exports this page is based on"
+    }
+  }
+}

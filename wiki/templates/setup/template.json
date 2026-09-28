@@ -1,0 +1,35 @@
+{
+  "description": "Owner-performed steps to set up an external service, and the non-secret outputs the agent needs.",
+  "path": "setup/{slug}",
+  "fields": {
+    "service": {
+      "type": "string",
+      "required": true,
+      "help": "e.g. Firebase, Expo, Meta Threads"
+    },
+    "status": {
+      "type": "enum",
+      "values": [
+        "TODO",
+        "IN_PROGRESS",
+        "BLOCKED",
+        "DONE"
+      ],
+      "default": "TODO"
+    },
+    "needed_by": {
+      "type": "ref",
+      "multiple": true,
+      "help": "tickets or pages that need this done"
+    },
+    "outputs": {
+      "type": "string",
+      "multiple": true,
+      "help": "names of non-secret values the agent needs back"
+    },
+    "secrets_location": {
+      "type": "string",
+      "help": "where secrets from this setup are kept (never the values)"
+    }
+  }
+}

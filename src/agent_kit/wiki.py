@@ -60,8 +60,8 @@ class Wiki:
     def _walk_md(self):
         for p in sorted(self.root.rglob("*.md")):
             parts = p.relative_to(self.root).parts
-            if any(part.startswith(".") for part in parts):
-                continue
+            if any(part.startswith(".") for part in parts) or any(part.startswith("_") for part in parts[:-1]):
+                continue  # hidden dirs, and _skeleton/ folders inside templates
             yield p
 
     def page_dirs(self) -> list[Path]:
@@ -138,6 +138,9 @@ class Wiki:
             return hits[0]
         if hits:
             raise AkitError(f"Ambiguous name {ref}: {', '.join(self.rel(h) for h in hits)}")
+        for d in self.page_dirs():  # page keys from templates, e.g. T-030
+            if fm.load(d / PAGE).meta.get("key", "").upper() == ref.upper():
+                return d / PAGE
         raise AkitError(f"Not found: {ref}")
 
     def page_dir(self, ref: str, cwd: Path | None = None) -> Path:

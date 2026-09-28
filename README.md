@@ -17,6 +17,8 @@ Point an agent at this repo on a new project and it walks you through setup:
 - **Wiki**: the tree of pages, maintained by agents in the style of
   [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):
   immutable `raw/` sources, an index, an append-only log.
+- **Templates**: typed page shapes (ticket, bdd, setup, source, tool) with fields, rules, and a
+  skeleton. Fields become CLI flags; rules print with `--help`; `akit check` validates.
 - **Bookmarks**: skills generated from a page's `bookmark:` field that remind agents to read that
   page at the moment it matters ("Use before writing Kotlin unit tests").
 - **Judges**: independent, fresh-context agents that check a bookmark or share is warranted.
@@ -43,6 +45,9 @@ uv tool install git+https://github.com/dmitchelljackson/agent-kit
 | `akit page new <path> "Title"` | Create a page |
 | `akit atom new "Title" --page <page>` | Create an atom (UUID generated) and embed it |
 | `akit atom find/rename/move/rm` | Restructure atoms without breaking embeds |
+| `akit new <template> "Title" --field …` | Create a page from a template (`akit new <template> --help` shows fields + rules) |
+| `akit set <page> field=value` / `akit ls <template> --where …` | Change and query template fields |
+| `akit template ls` / `akit template new <name> --from <page>` | List templates / turn a page shape into one |
 | `akit index` / `akit check` / `akit log` | Catalog, lint, and log the wiki |
 | `akit bookmark add/ls/rm/sync` | Manage bookmark skills |
 | `akit adapters` | Show supported agents and the judge in use |

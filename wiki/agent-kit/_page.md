@@ -7,9 +7,10 @@ bookmark_name: agent-kit-wiki
 ---
 
 This wiki is a git-backed tree of pages built from atoms, maintained by agents for the owner.
-The three pages below are the core; [bookmarks](bookmarks/_page.md), [sharing](sharing/_page.md),
+The pages below are the core; [bookmarks](bookmarks/_page.md), [sharing](sharing/_page.md),
 [judges](judges/_page.md), and [adapters](adapters/_page.md) cover the rest.
 
 ![[agent-kit/atoms/_page]]
 ![[agent-kit/pages/_page]]
 ![[agent-kit/operations/_page]]
+![[agent-kit/templates/_page]]

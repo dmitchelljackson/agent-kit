@@ -1,0 +1,65 @@
+{
+  "description": "A unit of work with one observable outcome, linked to the atoms it implements.",
+  "path": "tickets/{key_lower}-{slug}",
+  "key": {
+    "prefix": "T-",
+    "pad": 3,
+    "step": 10
+  },
+  "fields": {
+    "status": {
+      "type": "enum",
+      "values": [
+        "DRAFT",
+        "READY",
+        "IN_PROGRESS",
+        "IN_REVIEW",
+        "BLOCKED",
+        "DONE",
+        "DROPPED"
+      ],
+      "default": "DRAFT"
+    },
+    "type": {
+      "type": "enum",
+      "values": [
+        "product",
+        "enabling"
+      ],
+      "default": "product",
+      "help": "enabling: infrastructure that can't claim user-facing behavior"
+    },
+    "depends_on": {
+      "type": "ref",
+      "template": "ticket",
+      "multiple": true,
+      "help": "tickets that must land first"
+    },
+    "covers": {
+      "type": "ref",
+      "multiple": true,
+      "help": "atoms (BDD cases, decisions) this ticket implements"
+    },
+    "pr": {
+      "type": "string",
+      "help": "pull request URL"
+    },
+    "external": {
+      "type": "string",
+      "help": "external tracker ID, e.g. jira:ABC-123 or gh:42"
+    },
+    "outcome": {
+      "type": "text",
+      "into": "atom",
+      "required": true,
+      "atom_title": "Outcome",
+      "help": "one sentence: what becomes true when this merges"
+    },
+    "scope": {
+      "type": "text",
+      "into": "atom",
+      "atom_title": "Scope",
+      "help": "included / excluded"
+    }
+  }
+}
