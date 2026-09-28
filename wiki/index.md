@@ -9,6 +9,7 @@
   - [Judges](agent-kit/judges/_page.md) — Independent fresh-context checks before bookmarking or sharing.
     - [Bookmark judge criteria](agent-kit/judges/bookmark/_page.md) — Does this page deserve a bookmark?
     - [Share judge criteria](agent-kit/judges/share/_page.md) — Does this belong in the public kit?
+  - [Scope and landing](agent-kit/landing/_page.md) — Which wiki changes go straight to main, which ride with a branch, and how they get there.
   - [Wiki operations](agent-kit/operations/_page.md) — Ingest, query, lint, and log: how the wiki grows and stays healthy.
   - [Pages](agent-kit/pages/_page.md) — How pages arrange atoms, how to read them, and how the wiki is organized.
   - [Sharing and syncing](agent-kit/sharing/_page.md) — How projects install from the kit, pull its updates, and send improvements back. 🔖

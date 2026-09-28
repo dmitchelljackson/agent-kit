@@ -8,4 +8,5 @@ its page), and an optional skeleton. Before creating a page of a known shape, ru
 `akit new <template> --help`: it lists the fields and prints the rules. Create with
 `akit new <template> "Title" --field value ...`, change fields with `akit set <page> field=value`, and
 list with `akit ls <template> --where field=value`. `akit check` validates every templated page.
-Templates are optional; a plain `akit page new` is fine for one-off pages.
+Each template also declares a scope (see Scope and landing). Templates are optional; a plain
+`akit page new` is fine for one-off pages.

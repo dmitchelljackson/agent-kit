@@ -9,8 +9,10 @@ from pathlib import Path
 from . import __version__, adapters, bookmarks, judge, kit
 from . import templates as tp
 from . import frontmatter as fm
-from .config import SHARE_FILE, SHARE_MODES, AkitError, Project, effective_share_mode, find_project
+from .config import LANDING_MODES, OWNER_FILE, SHARE_MODES, AkitError, Project, effective_share_mode, find_project
+from . import land as landing
 from . import protect
+from . import scope as sc
 from .init import init as do_init
 from .wiki import PAGE, Wiki
 
@@ -38,14 +40,17 @@ def _body(args) -> str:
 def cmd_init(a):
     root = Path.cwd()
     agents = [x.strip() for x in a.agents.split(",") if x.strip()] if a.agents else []
-    share = a.share
-    if share is None and not (root / SHARE_FILE).exists() and sys.stdin.isatty():
-        share = protect.ask_share_mode()
-    project, log = do_init(root, a.name or root.name, a.summary or "", agents, a.kit, a.wiki, a.force, share)
+    share, land_mode = a.share, a.landing
+    if not (root / OWNER_FILE).exists() and sys.stdin.isatty():
+        if share is None:
+            share = protect.ask("share", "May content from this project be shared to the public agent-kit repo?", "off")
+        if land_mode is None:
+            land_mode = protect.ask("landing", "How may agents get wiki changes onto main?", "scoped")
+    project, log = do_init(root, a.name or root.name, a.summary or "", agents, a.kit, a.wiki, a.force, share, land_mode)
     print("\n".join(log))
-    if not project.is_kit and (root / SHARE_FILE).exists():
-        print(f"\nSharing: {project.share_mode}. Lock status: {protect.status(project)}.")
-        print("For a guarantee no agent can change it, the OWNER can run (needs your password):")
+    if not project.is_kit and (root / OWNER_FILE).exists():
+        print(f"\nOwner settings: share={project.share_mode}, landing={project.landing_mode}. Lock: {protect.status(project)}.")
+        print("For a guarantee no agent can change them, the OWNER can run (needs your password):")
         print(f"  {protect.hard_lock_command(project)}")
         if "codex" in project.agents:
             print("\nCodex has no per-file rule akit can set yet; file locks cover it. Optional config:\n" + protect.CODEX_SNIPPET)
@@ -76,7 +81,7 @@ def cmd_page_new(a):
     _, w = _ctx()
     p = w.new_page(a.path, a.title, a.summary or "")
     w.write_index()
-    print(w.rel(p))
+    print(f"{w.rel(p)}  (scope: {sc.describe(w.root, p)})")
 
 
 def cmd_atom_new(a):
@@ -102,7 +107,12 @@ def cmd_atom_rename(a):
 
 def cmd_atom_move(a):
     _, w = _ctx()
-    print(w.rel(w.move_atom(a.ref, w.page_dir(a.page))))
+    before = sc.effective(w.root, w.find(a.ref))[0]
+    moved = w.move_atom(a.ref, w.page_dir(a.page))
+    print(w.rel(moved))
+    after = sc.effective(w.root, moved)[0]
+    if before != after:
+        print(f"note: this atom moved from {before} scope to {after} scope")
 
 
 def cmd_atom_rm(a):
@@ -174,6 +184,11 @@ def cmd_index(a):
 def cmd_check(a):
     p, w = _ctx()
     probs = [str(x) for x in w.check()] + [str(x) for x in tp.validate(w)]
+    for f in sc.all_scope_files(w.root):
+        try:
+            sc.read_scope_file(f)
+        except AkitError as e:
+            probs.append(f"ERROR scope: {e}")
     probs += [f"ERROR bookmarks: {s}" for s in bookmarks.stale(p, w)]
     for line in probs:
         print(line)
@@ -308,7 +323,7 @@ def _share_gate(p: Project, owner: bool) -> None:
     mode, source = effective_share_mode(p)
     if mode == "on" or (mode == "owner" and owner):
         return
-    where = protect.file_link(p) if source == SHARE_FILE else "~/.config/akit/config.json"
+    where = protect.file_link(p) if source == OWNER_FILE else "~/.config/akit/config.json"
     if mode == "off":
         why = "Sharing is OFF for this project."
     else:
@@ -349,20 +364,58 @@ def cmd_share(a):
 def cmd_config(a):
     p, _ = _ctx()
     if p.is_kit:
-        raise AkitError("The kit repo has no share setting.")
-    mode, source = effective_share_mode(p)
-    print(f"share: {mode}  ({protect.SHARE_HELP[mode]})")
-    print(f"set in: {protect.file_link(p) if source == SHARE_FILE else source}")
+        raise AkitError("The kit repo has no owner settings.")
+    share, source = effective_share_mode(p)
+    print(f"share:   {share:7} {protect.SHARE_HELP[share]}" + (f"  (tightened by {source})" if source != OWNER_FILE else ""))
+    print(f"landing: {p.landing_mode:7} {protect.LANDING_HELP[p.landing_mode]}")
+    print(f"\nfile: {protect.file_link(p)}")
     print(f"lock: {protect.status(p)}")
-    print("\nOnly the owner changes this, by hand. Owner steps:\n" + protect.unlock_steps(p))
+    print("\nOnly the owner changes these, by hand. Owner steps:\n" + protect.unlock_steps(p))
 
 
 def cmd_lock(a):
     p, _ = _ctx()
     if p.is_kit:
-        raise AkitError("The kit repo has no share setting.")
+        raise AkitError("The kit repo has no owner settings.")
     print("\n".join(protect.lock(p)) or "already locked")
     print(f"lock: {protect.status(p)}")
+
+
+def cmd_land(a):
+    p, w = _ctx()
+    if p.is_kit:
+        raise AkitError("In the kit repo, wiki changes go through PRs like any other change.")
+    if a.dry_run:
+        print(landing.format_plan(landing.plan(p, a.paths), p.data.get("main_branch", "main")))
+        return
+    print(landing.land(p, a.paths, a.message))
+
+
+def cmd_scope(a):
+    p, w = _ctx()
+    if a.path:
+        target = w.find(a.path) if not Path(a.path).is_dir() else Path(a.path).resolve()
+        here = sc.describe(w.root, target)
+        print(f"{a.path}: {here}")
+        try:
+            repo = Path(landing._out(["rev-parse", "--show-toplevel"], p.root)).resolve()
+            ref = landing._target_ref(repo, p.data.get("main_branch", "main"))
+            probe = (target / "x") if target.is_dir() else target
+            on_main = landing.TargetScopes(repo, w.root.relative_to(repo).as_posix(), ref).effective(
+                probe.resolve().relative_to(repo).as_posix())
+            if ref and on_main[0] != here.split()[0]:
+                print(f"  here: {here.split()[0]}; for landing (main's scope files): {on_main[1]}")
+                print("  Scope file changes only take effect for landing once they merge.")
+        except AkitError:
+            pass
+        if p.landing_mode == "open":
+            print("(landing mode is open: scopes are ignored and every wiki change may land on main)")
+        return
+    print(f"landing mode: {p.landing_mode}\n")
+    for f in sc.all_scope_files(w.root):
+        rel = f.parent.relative_to(w.root).as_posix()
+        print(f"  {sc.read_scope_file(f):6}  {(rel + '/') if rel != '.' else './'}")
+    print("\nA directory's scope applies to everything below it until a nearer .akit-scope overrides it.")
 
 
 def cmd_judge(a):
@@ -432,6 +485,7 @@ def build_parser(argv: list[str] | None = None) -> argparse.ArgumentParser:
     s.add_argument("--wiki", default="wiki"); s.add_argument("--force", action="store_true")
     s.add_argument("--no-install", action="store_true", help="don't pull the agent-kit conventions pages")
     s.add_argument("--share", choices=SHARE_MODES, help="the OWNER's answer: off (never share), owner (only when they ask), on (agents may propose, judge-gated)")
+    s.add_argument("--landing", choices=LANDING_MODES, help="the OWNER's answer: open (solo: any wiki change may go to main), scoped (only main-scoped dirs), pr (scoped, via one rolling PR)")
     s.set_defaults(fn=cmd_init)
 
     s = sub.add_parser("read", help="print a page (or atom) with every embed inlined")
@@ -498,9 +552,17 @@ def build_parser(argv: list[str] | None = None) -> argparse.ArgumentParser:
     s.add_argument("--print", action="store_true", help="print the packet instead of running it")
     s.set_defaults(fn=cmd_judge)
 
-    s = sub.add_parser("config", help="show the owner-only share setting and how the owner changes it")
-    s.add_argument("key", choices=["share"]); s.set_defaults(fn=cmd_config)
-    sub.add_parser("lock", help="(re)apply locks protecting the share setting from agents").set_defaults(fn=cmd_lock)
+    s = sub.add_parser("config", help="show the owner-only settings (share, landing) and how the owner changes them")
+    s.add_argument("key", nargs="?", choices=["share", "landing"], help=argparse.SUPPRESS); s.set_defaults(fn=cmd_config)
+    sub.add_parser("lock", help="(re)apply locks protecting the owner settings from agents").set_defaults(fn=cmd_lock)
+
+    s = sub.add_parser("land", help="put wiki changes on main (per the owner's landing mode); never touches code or your branch")
+    s.add_argument("paths", nargs="*", help="limit to these wiki files/folders (all must be landable)")
+    s.add_argument("--dry-run", action="store_true", help="show what would land and what stays with the branch")
+    s.add_argument("-m", "--message", help="commit message"); s.set_defaults(fn=cmd_land)
+
+    s = sub.add_parser("scope", help="show a path's scope (main or branch) and which .akit-scope set it")
+    s.add_argument("path", nargs="?"); s.set_defaults(fn=cmd_scope)
 
     sub.add_parser("adapters", help="list agent adapters and the judge in use").set_defaults(fn=cmd_adapters)
 

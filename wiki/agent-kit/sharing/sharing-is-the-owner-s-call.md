@@ -3,7 +3,7 @@ id: 80741b32-6142-4961-b3e7-8b11bbc70ea8
 title: "Sharing is the owner's call"
 ---
 
-`.agent-kit-share.json` records whether this project may share to the public kit:
+`.agent-kit-owner.json` records the owner's decisions. `share` says whether this project may share to the public kit:
 **off** (never: private, client, or employer code), **owner** (only when the owner explicitly asks,
 with `--owner`), or **on** (agents may propose; a judge gates each share). A missing file means off.
 

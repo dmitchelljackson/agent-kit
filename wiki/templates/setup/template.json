@@ -1,6 +1,7 @@
 {
   "description": "Owner-performed steps to set up an external service, and the non-secret outputs the agent needs.",
   "path": "setup/{slug}",
+  "scope": "branch",
   "fields": {
     "service": {
       "type": "string",

@@ -20,6 +20,7 @@ from pathlib import Path
 
 from . import frontmatter as fm
 from .config import AkitError
+from . import scope as sc
 from .wiki import EMBED_LINE_RE, PAGE, Problem, Wiki, new_uuid, slugify
 
 TEMPLATES_DIR = "templates"
@@ -59,6 +60,7 @@ class Template:
     path: str
     key: dict | None
     fields: dict[str, Field]
+    scope: str | None = None
 
 
 def _field(name: str, spec: dict, where: str) -> Field:
@@ -86,7 +88,8 @@ def load(wiki: Wiki, name_or_dir: str | Path) -> Template:
         raise AkitError(f"{where}: invalid JSON: {e}") from e
     fields = {n: _field(n, s, where) for n, s in spec.get("fields", {}).items()}
     return Template(name=d.name, dir=d, description=spec.get("description", ""),
-                    path=spec.get("path", d.name + "/{slug}"), key=spec.get("key"), fields=fields)
+                    path=spec.get("path", d.name + "/{slug}"), key=spec.get("key"), fields=fields,
+                    scope=spec.get("scope"))
 
 
 def all_templates(wiki: Wiki) -> dict[str, Template]:
@@ -216,6 +219,9 @@ def create(wiki: Wiki, tpl: Template, title: str, values: dict[str, object], key
                           summary=f"{tpl.name.title()} pages" if i == len(parts) - 1 else "")
 
     page_dir.mkdir(parents=True, exist_ok=True)
+    top = wiki.root / parts[0]
+    if tpl.scope and len(parts) > 1 and not (top / sc.SCOPE_FILE).exists():
+        sc.write(top, tpl.scope)  # e.g. tickets/ -> main, the first time a ticket is made
     skel = tpl.dir / SKELETON
     body = ""
     renames: dict[str, str] = {}
@@ -383,6 +389,11 @@ def validate(wiki: Wiki) -> list[Problem]:
                 validate_value(wiki, f, v)
             except AkitError as e:
                 probs.append(Problem("error", where, str(e)))
+        if tpl.scope:
+            actual, _ = sc.effective(wiki.root, d)
+            if actual != tpl.scope:
+                probs.append(Problem("warn", where, f"{name} pages belong in {tpl.scope}-scoped directories; "
+                                     f"this one is {sc.describe(wiki.root, d)}"))
         for k in doc.meta:
             if k not in RESERVED and k not in tpl.fields:
                 probs.append(Problem("warn", where, f"field '{k}' isn't in the {name} template"))

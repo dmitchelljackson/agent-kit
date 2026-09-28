@@ -3,7 +3,8 @@
 This repo is two things:
 
 1. **`akit`**, a dependency-free Python CLI (`src/agent_kit/`) for an atom-based, git-backed wiki:
-   pages, atoms, bookmarks (generated skills), judges, install/sync/share.
+   pages, atoms, templates, bookmarks (generated skills), judges, scope and landing, owner settings,
+   and install/sync/share with the kit.
 2. **The kit's wiki** (`wiki/`): shared conventions, rules, reference, and tools that projects install.
    It uses the same format it defines.
 
@@ -20,13 +21,18 @@ is what `akit share` fills in.
 
 Read `uv run akit read wiki/agent-kit` first. Create and restructure atoms only through
 `akit atom ...`; edit atom content directly. Everything in `wiki/` is public and must be general:
-no project names, private links, customers, or credentials.
+no project names, private links, customers, or credentials. In this repo, wiki changes go through PRs
+like everything else (`akit land` is for projects). Kit pages carry their `.akit-scope` into projects,
+so set it deliberately: conventions, rules, and templates are `main`.
 
 ## Working on the CLI
 
 - No runtime dependencies. Python 3.10+ standard library only.
 - Keep it small. Add a command only when agents keep getting something wrong by hand.
-- Every change to wiki-editing behavior needs a test in `tests/`.
+- Every change to wiki-editing or git behavior needs a test in `tests/` (`test_land.py` runs against a
+  real bare remote).
+- When behavior changes, update `BOOTSTRAP.md`, `README.md`, the `akit-block.md` template, and the
+  relevant `wiki/agent-kit` atoms in the same change.
 - Agent adapters (skills folders, headless judge commands) live in `src/agent_kit/adapters.json`.
   Mark a judge command `verified` only after running it against the real CLI.
 

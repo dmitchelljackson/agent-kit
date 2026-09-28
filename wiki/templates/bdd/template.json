@@ -1,6 +1,7 @@
 {
   "description": "Numbered Given/When/Then acceptance cases for one screen or feature.",
   "path": "behavior/{slug}",
+  "scope": "branch",
   "key": {
     "prefix": "F-",
     "pad": 2,
