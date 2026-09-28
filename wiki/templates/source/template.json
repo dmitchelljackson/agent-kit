@@ -1,6 +1,7 @@
 {
   "description": "A source in raw/ (article, conversation, design export, doc): what it is and what the wiki took from it.",
   "path": "sources/{slug}",
+  "scope": "main",
   "fields": {
     "kind": {
       "type": "enum",

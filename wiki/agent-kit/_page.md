@@ -14,3 +14,4 @@ The pages below are the core; [bookmarks](bookmarks/_page.md), [sharing](sharing
 ![[agent-kit/pages/_page]]
 ![[agent-kit/operations/_page]]
 ![[agent-kit/templates/_page]]
+![[agent-kit/landing/_page]]

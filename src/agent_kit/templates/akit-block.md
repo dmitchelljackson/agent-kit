@@ -3,7 +3,8 @@
 
 Project knowledge lives in `{{WIKI}}/`, a tree of pages built from atoms. Start from `{{WIKI}}/index.md`.
 Read a page with `akit read <page>`; it assembles the page with every atom inlined.
-Sources you were given (docs, specs, exports, transcripts) go in `raw/` and are never edited.
+Sources you were given (docs, specs, exports, transcripts) go in `raw/` and are never edited;
+each gets a page in `{{WIKI}}/sources/` (`akit new source`).
 
 When your work locks a decision, changes behavior, or teaches you something future work
 needs, update the wiki in the same change and log it with `akit log <op> "<subject>"`.
@@ -14,6 +15,15 @@ Don't repeat yourself: every fact lives in one atom; embed or link it, never cop
 page of a known shape, check `akit new --help` and use the template (its `--help` prints the fields and
 rules). When you've written the same shape of page three times, make a template
 (`akit template new <name> --from <page>`) and bring the existing pages up to spec in the same change.
+
+### Getting wiki changes onto main
+
+Every wiki directory is scoped by its nearest `.akit-scope`: `main` (true regardless of branch:
+tickets, rules, decisions, sources) or `branch` (true once this branch's work merges: the feature being
+built). Put pages in the directory whose scope fits; `akit scope` shows them. After changing main-scoped
+pages, run `akit land` (check with `--dry-run`) before you finish. Never commit or push wiki changes to
+main yourself; `akit land` does it without touching code or your branch. Branch-scoped pages are
+committed with the branch's work like any other file.
 
 ### Bookmarks
 
@@ -26,11 +36,12 @@ Create one (`akit bookmark add`) only when a page must be read at a recognizable
 moment and skipping it caused a mistake, or plausibly would. It runs an independent
 judge unless the owner explicitly asked for it (`--owner`).
 
-### Sharing to the kit
+### Owner settings
 
-Whether content from this project may go to the public kit is the owner's call, recorded in
-`.agent-kit-share.json` (`akit config share` shows it): **off** (never), **owner** (only when the
-owner explicitly asks, with `--owner`), or **on** (agents may propose; a judge gates each share).
-Never edit, unlock, chmod, or work around that file or the permission rules protecting it. If
-`akit share` is refused and the owner wants to share, tell them and give them the file link it prints.
+`.agent-kit-owner.json` holds the owner's decisions (`akit config` shows them):
+`share` (may content go to the public kit: **off**, **owner** only when they ask with `--owner`, or
+**on** with a judge gating each share) and `landing` (**open**: every wiki change may land on main;
+**scoped**: only main-scoped directories; **pr**: through one rolling PR). Never edit, unlock, chmod, or
+work around that file or the permission rules protecting it. If akit refuses something because of
+it and the owner wants it changed, tell them and give them the file link akit prints.
 <!-- akit:end -->

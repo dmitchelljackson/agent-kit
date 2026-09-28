@@ -17,3 +17,5 @@ Approval: owner
 ## [2026-09-26] create | agent-kit v0.1: akit CLI, conventions wiki, default bookmarks
 
 ## [2026-09-28] template | templates: ticket, bdd, setup, source, tool; DRY conventions
+
+## [2026-09-28] update | scope and landing; owner settings file

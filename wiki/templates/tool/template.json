@@ -1,6 +1,7 @@
 {
   "description": "A script or command agents can install and run, documented next to its code.",
   "path": "tools/{slug}",
+  "scope": "branch",
   "fields": {
     "entry": {
       "type": "string",

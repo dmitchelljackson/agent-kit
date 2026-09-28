@@ -157,7 +157,7 @@ class Wiki:
         doc = fm.load(path)
         if path.name == PAGE:
             head = [f"# {doc.title or self.rel(path.parent) or 'Wiki'}"]
-            head.append(f"<!-- page: {self.rel(path.parent) or '.'} -->")
+            head.append(f"<!-- page: {self.rel(path.parent) or '.'} · scope: {self._scope(path)} -->")
             if doc.meta.get("summary"):
                 head.append(f"_{doc.meta['summary']}_")
             body = self._render_body(doc.body, path.parent, 1, [path.resolve()], errors)
@@ -204,14 +204,21 @@ class Wiki:
         doc = fm.load(path)
         title = doc.title or path.stem
         if path.name == PAGE:
-            tag = f"<!-- page: {self.rel(path.parent)} -->"
+            tag = f"<!-- page: {self.rel(path.parent)} · scope: {self._scope(path)} -->"
         else:
-            tag = f"<!-- atom: {doc.id or 'NO-ID'} · {self.rel(path)} -->"
+            tag = f"<!-- atom: {doc.id or 'NO-ID'} · {self.rel(path)} · scope: {self._scope(path)} -->"
         if doc.meta.get("status"):
             tag += f"\n**Status:** {doc.meta['status'].upper()}"
         body = _shift_headings(doc.body, level)
         body = self._render_body(body, path.parent, level, [*stack, path.resolve()], errors)
         return f"{'#' * level} {title}\n{tag}\n\n{body.strip()}"
+
+    def _scope(self, path: Path) -> str:
+        from .scope import effective
+        try:
+            return effective(self.root, path)[0]
+        except AkitError:
+            return "invalid"
 
     # ---------- structural edits ----------
 

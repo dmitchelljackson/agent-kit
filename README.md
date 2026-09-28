@@ -23,9 +23,14 @@ Point an agent at this repo on a new project and it walks you through setup:
   page at the moment it matters ("Use before writing Kotlin unit tests").
 - **Judges**: independent, fresh-context agents that check a bookmark or share is warranted.
   The owner always has final say (`--owner`).
+- **Scope and landing**: each wiki directory is `main`-scoped (tickets, rules, decisions: true on any
+  branch) or `branch`-scoped (the feature being built), via a `.akit-scope` file. `akit land` puts
+  main-scoped changes on main from a temporary worktree, never touching code or your branch.
 - **Sharing**: projects own their copies and may differ from the kit. `akit sync` reports upstream
-  changes to take or skip; `akit share` sends improvements back as PRs. Whether a project may share
-  at all (`off` / `owner` / `on`) is the owner's call, kept in a locked file agents can't change.
+  changes to take or skip; `akit share` sends improvements back as PRs.
+- **Owner settings**: `share` (off / owner / on) and `landing` (open / scoped / pr) live in
+  `.agent-kit-owner.json`, set once from the owner's answers at setup and locked so agents can't
+  change them.
 
 Agent-agnostic: plain files, `AGENTS.md`, and `SKILL.md` folders. Adapters for Claude Code, Codex,
 and OpenCode by default; slots for Gemini, Grok, Cursor, Copilot (`akit adapters`).
@@ -51,7 +56,9 @@ uv tool install git+https://github.com/dmitchelljackson/agent-kit
 | `akit index` / `akit check` / `akit log` | Catalog, lint, and log the wiki |
 | `akit bookmark add/ls/rm/sync` | Manage bookmark skills |
 | `akit adapters` | Show supported agents and the judge in use |
-| `akit config share` / `akit lock` | Show the owner-only share setting / re-apply its locks |
+| `akit scope [path]` | Show directory scopes, or a path's scope and where it came from |
+| `akit land [paths] [--dry-run]` | Put wiki changes on main per the landing mode; never touches code |
+| `akit config` / `akit lock` | Show the owner settings / re-apply their locks |
 | `akit kit ls` / `akit install <page>` | Browse and install kit pages |
 | `akit sync [--take … \| --take-safe] [--done]` | Review and take upstream kit changes |
 | `akit share <targets>` / `akit share submit` | Propose content back to the kit as a PR |

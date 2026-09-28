@@ -9,7 +9,8 @@ from pathlib import Path
 
 from . import adapters
 from . import protect
-from .config import CONFIG_NAME, DEFAULT_KIT, SHARE_FILE, SHARE_MODES, AkitError, Project
+from .config import CONFIG_NAME, DEFAULT_KIT, OWNER_FILE, AkitError, Project
+from .scope import SCOPE_FILE
 
 BEGIN, END = "<!-- akit:begin", "<!-- akit:end -->"
 
@@ -30,7 +31,7 @@ def upsert_block(text: str, block: str) -> str:
 
 
 def init(root: Path, name: str, summary: str, agents: list[str], kit: str, wiki: str, force: bool,
-         share: str | None = None) -> tuple[Project, list[str]]:
+         share: str | None = None, landing: str | None = None) -> tuple[Project, list[str]]:
     log: list[str] = []
     cfg = root / CONFIG_NAME
     if cfg.exists() and not force:
@@ -42,17 +43,23 @@ def init(root: Path, name: str, summary: str, agents: list[str], kit: str, wiki:
     if cfg.exists():
         old = Project(root=root, data=json.loads(cfg.read_text()))
         project.data = {**old.data, **{k: v for k, v in project.data.items() if v}}
-    project.data.pop("share", None)  # never stored here; see SHARE_FILE
-    flag = root / SHARE_FILE
-    if flag.exists():
-        if share and share != project.share_mode:
-            log.append(f"kept {SHARE_FILE} as is (share: {project.share_mode}); only the owner changes it, by hand")
+    project.data.pop("share", None)  # never stored here; see OWNER_FILE
+    owner = root / OWNER_FILE
+    if owner.exists():
+        current = project.owner_settings()
+        for key, value in (("share", share), ("landing", landing)):
+            if value and value != current.get(key):
+                log.append(f"kept {OWNER_FILE} as is ({key}: {current.get(key)}); only the owner changes it, by hand")
     else:
-        if share is None:
-            raise AkitError("Ask the owner whether this project may share to the public kit, then pass "
-                            "--share off|owner|on (off: never; owner: only when they ask; on: agents may propose, judge-gated).")
-        protect.write_share_file(project, share)
-        log.append(f"wrote {SHARE_FILE} (share: {share})")
+        missing = [flag for flag, v in (("--share off|owner|on", share), ("--landing open|scoped|pr", landing)) if v is None]
+        if missing:
+            raise AkitError(
+                "These are the owner's decisions. Ask them, then pass " + " and ".join(missing) + ":\n"
+                "  share:   off (never share to the public kit), owner (only when they ask), on (agents may propose; judge-gated)\n"
+                "  landing: open (solo: every wiki change may go to main), scoped (only main-scoped directories go to main),\n"
+                "           pr (like scoped, through one rolling PR)")
+        protect.write_owner_file(project, share, landing)
+        log.append(f"wrote {OWNER_FILE} (share: {share}, landing: {landing})")
     project.save()
     log.append(f"wrote {CONFIG_NAME}")
 
@@ -86,6 +93,9 @@ def init(root: Path, name: str, summary: str, agents: list[str], kit: str, wiki:
     if not (w / "_page.md").exists():
         (w / "_page.md").write_text(template("wiki-page.md").replace("{{PROJECT}}", name), encoding="utf-8")
         log.append(f"wrote {wiki}/_page.md")
+    if not (w / SCOPE_FILE).exists():
+        (w / SCOPE_FILE).write_text("branch\n", encoding="utf-8")
+        log.append(f"wrote {wiki}/{SCOPE_FILE} (branch: the default; main-scoped directories get their own)")
     if not (w / "log.md").exists():
         (w / "log.md").write_text("# Log\n\nAppend-only. Newest at the bottom. Entries: `## [YYYY-MM-DD] <op> | <subject>`.\n", encoding="utf-8")
         log.append(f"wrote {wiki}/log.md")

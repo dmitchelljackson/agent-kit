@@ -59,7 +59,7 @@ class AtomTest(unittest.TestCase):
             self.assertIn("# Testing", out)
             self.assertIn("### Fakes", out)  # one below the ## heading it sits under
             self.assertIn("Why: mocks lie.", out)
-            self.assertRegex(out, r"<!-- atom: [0-9a-f-]{36} · t/fakes\.md -->")
+            self.assertRegex(out, r"<!-- atom: [0-9a-f-]{36} · t/fakes\.md · scope: branch -->")
 
     def test_read_fails_loudly_on_missing_atom(self):
         with TempDir() as root:

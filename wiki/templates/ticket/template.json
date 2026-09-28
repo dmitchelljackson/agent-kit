@@ -1,6 +1,7 @@
 {
   "description": "A unit of work with one observable outcome, linked to the atoms it implements.",
   "path": "tickets/{key_lower}-{slug}",
+  "scope": "main",
   "key": {
     "prefix": "T-",
     "pad": 3,
