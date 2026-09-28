@@ -1,5 +1,6 @@
 """End to end against a throwaway local kit repo: init → install → upstream change → sync → share prepare."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -62,7 +63,7 @@ class KitFlowTest(unittest.TestCase):
         git(self.kit, "commit", "-q", "-m", msg)
 
     def test_full_flow(self):
-        out = ok(akit(self.proj, "init", "--name", "Demo", "--summary", "A demo app.", "--agents", "claude,codex"))
+        out = ok(akit(self.proj, "init", "--name", "Demo", "--summary", "A demo app.", "--agents", "claude,codex", "--share", "owner"))
         self.assertIn("wrote AGENTS.md", out)
         self.assertEqual((self.proj / "CLAUDE.md").read_text(), "@AGENTS.md\n")
         agents = (self.proj / "AGENTS.md").read_text()
@@ -124,9 +125,65 @@ class KitFlowTest(unittest.TestCase):
         self.assertIn("Owner-approved in session", body)
         self.assertIn("Test the real class", body)
         self.assertIn("TODO(akit)", body)
-        code, _, err = akit(self.proj, "share", "submit", "--title", "x")
+        code, _, err = akit(self.proj, "share", "submit", "--title", "x", "--owner")
         self.assertEqual(code, 1)
         self.assertIn("Fill in every TODO(akit)", err)
+
+
+class ShareSettingTest(KitFlowTest):
+    test_full_flow = None
+
+    def test_init_requires_owner_answer(self):
+        code, _, err = akit(self.proj, "init", "--agents", "claude", "--no-install")
+        self.assertEqual(code, 1)
+        self.assertIn("Ask the owner whether this project may share", err)
+        self.assertFalse((self.proj / ".agent-kit-share.json").exists())
+
+    def test_flag_file_is_locked_and_never_overwritten(self):
+        ok(akit(self.proj, "init", "--agents", "claude,opencode,codex", "--share", "off", "--no-install"))
+        flag = self.proj / ".agent-kit-share.json"
+        self.assertFalse(os.access(flag, os.W_OK))
+        self.assertNotIn("share", (self.proj / ".agent-kit.json").read_text())
+        deny = json.loads((self.proj / ".claude/settings.json").read_text())["permissions"]["deny"]
+        self.assertIn("Edit(/.agent-kit-share.json)", deny)
+        self.assertIn("Write(/.agent-kit-share.json)", deny)
+        edit = json.loads((self.proj / "opencode.json").read_text())["permission"]["edit"]
+        self.assertEqual(list(edit.items())[-1], (".agent-kit-share.json", "deny"))
+        # re-running init (as an agent might) cannot flip it
+        out = ok(akit(self.proj, "init", "--force", "--share", "on", "--no-install"))
+        self.assertIn("only the owner changes it", out)
+        self.assertEqual(json.loads(flag.read_text())["share"], "off")
+        # lock is idempotent
+        self.assertIn("already locked", ok(akit(self.proj, "lock")))
+
+    def test_off_refuses_even_with_owner_flag_and_links_the_file(self):
+        ok(akit(self.proj, "init", "--agents", "claude", "--share", "off"))
+        ok(akit(self.proj, "install", "android"))
+        code, _, err = akit(self.proj, "share", "wiki/android", "--owner")
+        self.assertEqual(code, 1)
+        self.assertIn("Sharing is OFF", err)
+        self.assertIn("no longer supposed to be private", err)
+        self.assertIn((self.proj / ".agent-kit-share.json").resolve().as_uri(), err)
+        self.assertIn("share: off", ok(akit(self.proj, "config", "share")))
+
+    def test_owner_mode_blocks_agent_initiated_share(self):
+        ok(akit(self.proj, "init", "--agents", "claude", "--share", "owner"))
+        ok(akit(self.proj, "install", "android"))
+        code, _, err = akit(self.proj, "share", "wiki/android", "--verdict", "share: looks general")
+        self.assertEqual(code, 1)
+        self.assertIn("OWNER-ONLY", err)
+
+    def test_user_config_can_only_make_it_stricter(self):
+        ok(akit(self.proj, "init", "--agents", "claude", "--share", "on"))
+        cfg = self.tmp / "config" / "akit"
+        cfg.mkdir(parents=True)
+        (cfg / "config.json").write_text('{"share": "off"}')
+        self.assertIn("share: off", ok(akit(self.proj, "config", "share")))
+        (cfg / "config.json").write_text('{"share": "on"}')
+        flag = self.proj / ".agent-kit-share.json"
+        flag.chmod(0o644)
+        flag.write_text('{"share": "owner"}')
+        self.assertIn("share: owner", ok(akit(self.proj, "config", "share")))
 
 
 if __name__ == "__main__":

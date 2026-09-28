@@ -28,18 +28,29 @@ Ask, briefly, and wait for answers:
    claude, codex, opencode, gemini, grok, cursor, copilot.)
 4. How do you build, test, lint, and run it? (Skip if you can read it from the repo; confirm instead.)
 5. Anything agents must **never** do here? (Beyond: don't push to main, don't commit secrets.)
+6. **May content from this project be shared to the public agent-kit repo?** Ask this exactly,
+   explain the options, and use their answer; never pick for them:
+   - **off**: never. Right for private, client, or employer code.
+   - **owner**: only when they explicitly ask in a conversation.
+   - **on**: agents may propose shares; an independent judge gates each one; they still merge.
 
 ## 3. Initialize
 
 From the project root:
 
 ```bash
-akit init --name "<name>" --summary "<one-liner incl. stack>" --agents <comma-list>
+akit init --name "<name>" --summary "<one-liner incl. stack>" --agents <comma-list> --share <their answer>
 ```
 
 This writes `.agent-kit.json`, `AGENTS.md` (plus shims like `CLAUDE.md` → `@AGENTS.md`),
 `wiki/` (home, log, index), `raw/`, and installs the kit's `agent-kit` conventions pages with their
 bookmarks. Then read them: `akit read wiki/agent-kit`.
+
+The share answer goes in `.agent-kit-share.json`, a separate owner-only file. akit makes it
+read-only and adds deny rules for agents that support them (Claude Code, OpenCode). Show the owner
+the **hard-lock command** `akit init` printed, and tell them it guarantees no agent can change the
+setting. They run it themselves because it needs their password; never run it for them. From now
+on, never edit, unlock, or work around that file.
 
 ## 4. Choose pages from the kit
 

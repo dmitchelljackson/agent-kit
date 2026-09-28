@@ -7,6 +7,7 @@ bookmark_name: agent-kit-sharing
 ---
 
 ![[projects-own-their-copies]]
+![[sharing-is-the-owner-s-call]]
 ![[installing-and-syncing]]
 ![[what-belongs-in-the-kit]]
 ![[how-to-share]]

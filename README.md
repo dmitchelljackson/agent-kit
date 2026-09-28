@@ -22,7 +22,8 @@ Point an agent at this repo on a new project and it walks you through setup:
 - **Judges**: independent, fresh-context agents that check a bookmark or share is warranted.
   The owner always has final say (`--owner`).
 - **Sharing**: projects own their copies and may differ from the kit. `akit sync` reports upstream
-  changes to take or skip; `akit share` sends improvements back as PRs.
+  changes to take or skip; `akit share` sends improvements back as PRs. Whether a project may share
+  at all (`off` / `owner` / `on`) is the owner's call, kept in a locked file agents can't change.
 
 Agent-agnostic: plain files, `AGENTS.md`, and `SKILL.md` folders. Adapters for Claude Code, Codex,
 and OpenCode by default; slots for Gemini, Grok, Cursor, Copilot (`akit adapters`).
@@ -45,6 +46,7 @@ uv tool install git+https://github.com/dmitchelljackson/agent-kit
 | `akit index` / `akit check` / `akit log` | Catalog, lint, and log the wiki |
 | `akit bookmark add/ls/rm/sync` | Manage bookmark skills |
 | `akit adapters` | Show supported agents and the judge in use |
+| `akit config share` / `akit lock` | Show the owner-only share setting / re-apply its locks |
 | `akit kit ls` / `akit install <page>` | Browse and install kit pages |
 | `akit sync [--take … \| --take-safe] [--done]` | Review and take upstream kit changes |
 | `akit share <targets>` / `akit share submit` | Propose content back to the kit as a PR |
