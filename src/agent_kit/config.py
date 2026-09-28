@@ -9,6 +9,8 @@ from pathlib import Path
 
 CONFIG_NAME = ".agent-kit.json"
 DEFAULT_KIT = "https://github.com/dmitchelljackson/agent-kit"
+SHARE_FILE = ".agent-kit-share.json"  # owner-only; see protect.py
+SHARE_MODES = ["off", "owner", "on"]  # least to most permissive
 
 
 class AkitError(Exception):
@@ -50,6 +52,18 @@ class Project:
     def name(self) -> str:
         return self.data.get("project") or self.root.name
 
+    @property
+    def share_mode(self) -> str:
+        """From the owner-only flag file. Missing or unreadable means off."""
+        path = self.root / SHARE_FILE
+        if not path.is_file():
+            return "off"
+        try:
+            value = json.loads(path.read_text(encoding="utf-8")).get("share", "off")
+        except (json.JSONDecodeError, OSError):
+            return "off"
+        return _valid_share(value, SHARE_FILE)
+
     def save(self) -> None:
         (self.root / CONFIG_NAME).write_text(json.dumps(self.data, indent=2) + "\n", encoding="utf-8")
 
@@ -81,3 +95,20 @@ def cache_dir() -> Path:
 def kit_dir_override() -> Path | None:
     value = os.environ.get("AKIT_KIT_DIR") or user_config().get("kit_dir")
     return Path(value).expanduser() if value else None
+
+
+def _valid_share(mode: str, where: str) -> str:
+    if mode not in SHARE_MODES:
+        raise AkitError(f"Invalid share mode '{mode}' in {where}; use one of: {', '.join(SHARE_MODES)}")
+    return mode
+
+
+def effective_share_mode(project: Project) -> tuple[str, str]:
+    """(mode, source). The stricter of the project and user settings wins."""
+    mode, source = project.share_mode, SHARE_FILE
+    user = user_config().get("share")
+    if user is not None:
+        user = _valid_share(user, "~/.config/akit/config.json")
+        if SHARE_MODES.index(user) < SHARE_MODES.index(mode):
+            mode, source = user, "~/.config/akit/config.json"
+    return mode, source

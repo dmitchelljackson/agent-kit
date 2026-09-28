@@ -18,7 +18,14 @@ They hold no rules; the wiki is the only source of truth. Before starting work i
 new area, check your skills for a matching bookmark.
 
 Create one (`akit bookmark add`) only when a page must be read at a recognizable
-moment and skipping it caused a mistake, or plausibly would. If a page would help
-any project on this stack, propose it upstream with `akit share`. Both run an
-independent judge unless the owner explicitly asked for it (`--owner`).
+moment and skipping it caused a mistake, or plausibly would. It runs an independent
+judge unless the owner explicitly asked for it (`--owner`).
+
+### Sharing to the kit
+
+Whether content from this project may go to the public kit is the owner's call, recorded in
+`.agent-kit-share.json` (`akit config share` shows it): **off** (never), **owner** (only when the
+owner explicitly asks, with `--owner`), or **on** (agents may propose; a judge gates each share).
+Never edit, unlock, chmod, or work around that file or the permission rules protecting it. If
+`akit share` is refused and the owner wants to share, tell them and give them the file link it prints.
 <!-- akit:end -->

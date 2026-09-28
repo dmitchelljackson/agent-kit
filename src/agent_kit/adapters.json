@@ -1,52 +1,63 @@
 {
-  "_comment": "Per-agent adapters. Override or add agents in .agent-kit.json or ~/.config/akit/config.json under \"adapters\". judge: headless command; {file} is replaced by the judge packet path, otherwise the packet is piped on stdin. verified: whether the command has been checked against the real CLI.",
+  "_comment": "Per-agent adapters. Override or add agents in .agent-kit.json or ~/.config/akit/config.json under \"adapters\". judge: headless command; {file} is replaced by the judge packet path, otherwise the packet is piped on stdin. verified: whether the command has been checked against the real CLI. protect: how akit blocks the agent from editing the owner-only share flag (null = file locks only).",
   "claude": {
     "label": "Claude Code",
     "skills_dir": ".claude/skills",
     "instructions_file": "CLAUDE.md",
     "judge": "claude -p --tools \"\"",
-    "verified": true
+    "verified": true,
+    "protect": {
+      "type": "claude-settings"
+    }
   },
   "codex": {
     "label": "OpenAI Codex CLI",
     "skills_dir": ".agents/skills",
     "instructions_file": "AGENTS.md",
     "judge": "codex exec --sandbox read-only --skip-git-repo-check -",
-    "verified": false
+    "verified": false,
+    "protect": null
   },
   "opencode": {
     "label": "OpenCode",
     "skills_dir": ".opencode/skills",
     "instructions_file": "AGENTS.md",
     "judge": "opencode run \"Follow the instructions in the attached file exactly.\" -f {file}",
-    "verified": true
+    "verified": true,
+    "protect": {
+      "type": "opencode-json"
+    }
   },
   "gemini": {
     "label": "Gemini CLI",
     "skills_dir": ".gemini/skills",
     "instructions_file": "GEMINI.md",
     "judge": "gemini -p \" \" --approval-mode plan",
-    "verified": false
+    "verified": false,
+    "protect": null
   },
   "grok": {
     "label": "Grok CLI",
     "skills_dir": null,
     "instructions_file": null,
     "judge": null,
-    "verified": false
+    "verified": false,
+    "protect": null
   },
   "cursor": {
     "label": "Cursor",
     "skills_dir": ".cursor/skills",
     "instructions_file": "AGENTS.md",
     "judge": null,
-    "verified": false
+    "verified": false,
+    "protect": null
   },
   "copilot": {
     "label": "GitHub Copilot",
     "skills_dir": ".github/skills",
     "instructions_file": "AGENTS.md",
     "judge": null,
-    "verified": false
+    "verified": false,
+    "protect": null
   }
 }

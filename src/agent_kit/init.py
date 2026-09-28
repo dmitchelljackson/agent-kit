@@ -8,7 +8,8 @@ from importlib import resources
 from pathlib import Path
 
 from . import adapters
-from .config import CONFIG_NAME, DEFAULT_KIT, AkitError, Project
+from . import protect
+from .config import CONFIG_NAME, DEFAULT_KIT, SHARE_FILE, SHARE_MODES, AkitError, Project
 
 BEGIN, END = "<!-- akit:begin", "<!-- akit:end -->"
 
@@ -28,7 +29,8 @@ def upsert_block(text: str, block: str) -> str:
     return text.rstrip("\n") + "\n\n" + block + "\n"
 
 
-def init(root: Path, name: str, summary: str, agents: list[str], kit: str, wiki: str, force: bool) -> tuple[Project, list[str]]:
+def init(root: Path, name: str, summary: str, agents: list[str], kit: str, wiki: str, force: bool,
+         share: str | None = None) -> tuple[Project, list[str]]:
     log: list[str] = []
     cfg = root / CONFIG_NAME
     if cfg.exists() and not force:
@@ -40,6 +42,17 @@ def init(root: Path, name: str, summary: str, agents: list[str], kit: str, wiki:
     if cfg.exists():
         old = Project(root=root, data=json.loads(cfg.read_text()))
         project.data = {**old.data, **{k: v for k, v in project.data.items() if v}}
+    project.data.pop("share", None)  # never stored here; see SHARE_FILE
+    flag = root / SHARE_FILE
+    if flag.exists():
+        if share and share != project.share_mode:
+            log.append(f"kept {SHARE_FILE} as is (share: {project.share_mode}); only the owner changes it, by hand")
+    else:
+        if share is None:
+            raise AkitError("Ask the owner whether this project may share to the public kit, then pass "
+                            "--share off|owner|on (off: never; owner: only when they ask; on: agents may propose, judge-gated).")
+        protect.write_share_file(project, share)
+        log.append(f"wrote {SHARE_FILE} (share: {share})")
     project.save()
     log.append(f"wrote {CONFIG_NAME}")
 
@@ -84,6 +97,7 @@ def init(root: Path, name: str, summary: str, agents: list[str], kit: str, wiki:
 
     _ensure_line(root / ".gitattributes", f"{wiki}/log.md merge=union", log)
     _ensure_line(root / ".gitignore", ".obsidian/", log)
+    log += protect.lock(project)
     return project, log
 
 

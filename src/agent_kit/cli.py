@@ -8,7 +8,8 @@ from pathlib import Path
 
 from . import __version__, adapters, bookmarks, judge, kit
 from . import frontmatter as fm
-from .config import AkitError, Project, find_project
+from .config import SHARE_FILE, SHARE_MODES, AkitError, Project, effective_share_mode, find_project
+from . import protect
 from .init import init as do_init
 from .wiki import PAGE, Wiki
 
@@ -36,8 +37,17 @@ def _body(args) -> str:
 def cmd_init(a):
     root = Path.cwd()
     agents = [x.strip() for x in a.agents.split(",") if x.strip()] if a.agents else []
-    project, log = do_init(root, a.name or root.name, a.summary or "", agents, a.kit, a.wiki, a.force)
+    share = a.share
+    if share is None and not (root / SHARE_FILE).exists() and sys.stdin.isatty():
+        share = protect.ask_share_mode()
+    project, log = do_init(root, a.name or root.name, a.summary or "", agents, a.kit, a.wiki, a.force, share)
     print("\n".join(log))
+    if not project.is_kit and (root / SHARE_FILE).exists():
+        print(f"\nSharing: {project.share_mode}. Lock status: {protect.status(project)}.")
+        print("For a guarantee no agent can change it, the OWNER can run (needs your password):")
+        print(f"  {protect.hard_lock_command(project)}")
+        if "codex" in project.agents:
+            print("\nCodex has no per-file rule akit can set yet; file locks cover it. Optional config:\n" + protect.CODEX_SNIPPET)
     if not a.no_install:
         print("\nInstalling agent-kit conventions from the kit...")
         print("\n".join(kit.install(project, ["agent-kit"], recursive=True)))
@@ -239,9 +249,26 @@ def _share_packet(p: Project, w: Wiki, targets: list[str], evidence: str, findin
     return judge.build_packet("share", judge.criteria_text(_wiki_roots(p), "share"), "\n\n---\n\n".join(parts), context)
 
 
+def _share_gate(p: Project, owner: bool) -> None:
+    mode, source = effective_share_mode(p)
+    if mode == "on" or (mode == "owner" and owner):
+        return
+    where = protect.file_link(p) if source == SHARE_FILE else "~/.config/akit/config.json"
+    if mode == "off":
+        why = "Sharing is OFF for this project."
+    else:
+        why = ("Sharing is OWNER-ONLY for this project: share only when the owner explicitly asks in the "
+               "conversation, then pass --owner.")
+    raise AkitError(
+        f"{why}\n\nIf this project is no longer supposed to be private (or the owner wants agents to share more),\n"
+        f"ask the owner to change it MANUALLY. Do not edit, unlock, or work around it yourself.\n"
+        f"  Setting: {where}\n  Owner steps:\n{protect.unlock_steps(p)}")
+
+
 def cmd_share(a):
     p, w = _ctx()
     _need_project(p, "share")
+    _share_gate(p, a.owner)
     if a.targets[:1] == ["submit"]:
         if not a.title:
             raise AkitError('Give --title "..." for the PR.')
@@ -262,6 +289,25 @@ def cmd_share(a):
     if st["problems"]:
         print("\nKit check errors after applying (fix in the worktree before submitting):\n  " + "\n  ".join(st["problems"]))
     print(f"\nNext: fill every TODO(akit) in the PR body:\n  {st['body']}\nthen run: akit share submit --title \"<title>\"")
+
+
+def cmd_config(a):
+    p, _ = _ctx()
+    if p.is_kit:
+        raise AkitError("The kit repo has no share setting.")
+    mode, source = effective_share_mode(p)
+    print(f"share: {mode}  ({protect.SHARE_HELP[mode]})")
+    print(f"set in: {protect.file_link(p) if source == SHARE_FILE else source}")
+    print(f"lock: {protect.status(p)}")
+    print("\nOnly the owner changes this, by hand. Owner steps:\n" + protect.unlock_steps(p))
+
+
+def cmd_lock(a):
+    p, _ = _ctx()
+    if p.is_kit:
+        raise AkitError("The kit repo has no share setting.")
+    print("\n".join(protect.lock(p)) or "already locked")
+    print(f"lock: {protect.status(p)}")
 
 
 def cmd_judge(a):
@@ -293,6 +339,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--kit", help="kit repo URL (default: dmitchelljackson/agent-kit)")
     s.add_argument("--wiki", default="wiki"); s.add_argument("--force", action="store_true")
     s.add_argument("--no-install", action="store_true", help="don't pull the agent-kit conventions pages")
+    s.add_argument("--share", choices=SHARE_MODES, help="the OWNER's answer: off (never share), owner (only when they ask), on (agents may propose, judge-gated)")
     s.set_defaults(fn=cmd_init)
 
     s = sub.add_parser("read", help="print a page (or atom) with every embed inlined")
@@ -338,6 +385,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--when"); s.add_argument("--evidence"); s.add_argument("--judge")
     s.add_argument("--print", action="store_true", help="print the packet instead of running it")
     s.set_defaults(fn=cmd_judge)
+
+    s = sub.add_parser("config", help="show the owner-only share setting and how the owner changes it")
+    s.add_argument("key", choices=["share"]); s.set_defaults(fn=cmd_config)
+    sub.add_parser("lock", help="(re)apply locks protecting the share setting from agents").set_defaults(fn=cmd_lock)
 
     sub.add_parser("adapters", help="list agent adapters and the judge in use").set_defaults(fn=cmd_adapters)
 
