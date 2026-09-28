@@ -46,6 +46,7 @@ def _out(args: list[str], cwd: Path) -> str:
 class Change:
     path: str          # repo-relative, posix
     deleted: bool
+    added: bool = False
     scope: str = ""
     why: str = ""
 
@@ -69,12 +70,12 @@ def _status(repo: Path, wiki_rel: str) -> list[Change]:
         e = entries[i]
         xy, path = e[:2], e[3:]
         if xy[0] in "RC":
-            changes.append(Change(path, deleted=False))
+            changes.append(Change(path, deleted=False, added=True))
             if xy[0] == "R":
                 changes.append(Change(entries[i + 1], deleted=True))
             i += 2
             continue
-        changes.append(Change(path, deleted="D" in xy))
+        changes.append(Change(path, deleted="D" in xy, added=xy in ("??", "A ", "AM")))
         i += 1
     return changes
 
@@ -175,13 +176,17 @@ def plan(project: Project, paths: list[str]) -> Plan:
     return p
 
 
+def _mark(c: Change) -> str:
+    return "D" if c.deleted else "A" if c.added else "M"
+
+
 def format_plan(p: Plan, target: str) -> str:
     out = [f"landing mode: {p.mode}   target: {target}"]
     out.append(f"\nWill land ({len(p.land)}):" if p.land else "\nNothing to land.")
-    out += [f"  {'D' if c.deleted else 'M'} {c.path}   [{c.why}]" for c in p.land]
+    out += [f"  {_mark(c)} {c.path}   [{c.why}]" for c in p.land]
     if p.stay:
         out.append(f"\nStays with your branch ({len(p.stay)}):")
-        out += [f"  {'D' if c.deleted else 'M'} {c.path}   [{c.why}]" for c in p.stay]
+        out += [f"  {_mark(c)} {c.path}   [{c.why}]" for c in p.stay]
     if p.land:
         out.append("\nAlso: new log entries are appended on the target; index and bookmark skills are rebuilt there.")
     return "\n".join(out)
@@ -275,7 +280,7 @@ def land(project: Project, paths: list[str], message: str | None) -> str:
     if not p.land:
         return format_plan(p, target)
     msg = message or ("wiki: land " + ", ".join(sorted({Path(c.path).parent.name or c.path for c in p.land}))[:60])
-    msg += "\n\n" + "\n".join(f"{'D' if c.deleted else 'M'} {c.path}" for c in p.land) + "\n\nLanded by akit."
+    msg += "\n\n" + "\n".join(f"{_mark(c)} {c.path}" for c in p.land) + "\n\nLanded by akit."
     log_text = _new_log_text(p.repo, p.wiki_rel)
     if p.mode == "pr":
         return _land_pr(p, project, msg, log_text, target, reason="landing mode: pr")
