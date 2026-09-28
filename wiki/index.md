@@ -12,3 +12,10 @@
   - [Wiki operations](agent-kit/operations/_page.md) — Ingest, query, lint, and log: how the wiki grows and stays healthy.
   - [Pages](agent-kit/pages/_page.md) — How pages arrange atoms, how to read them, and how the wiki is organized.
   - [Sharing and syncing](agent-kit/sharing/_page.md) — How projects install from the kit, pull its updates, and send improvements back. 🔖
+  - [Templates and DRY](agent-kit/templates/_page.md) — Keep one fact in one place, and turn repeated page shapes into templates.
+- [Templates](templates/_page.md) — Typed page shapes: fields, rules, and skeletons. `akit new --help` lists them.
+  - [BDD template](templates/bdd/_page.md) — Numbered Given/When/Then acceptance cases for one screen or feature.
+  - [Setup template](templates/setup/_page.md) — Ordered steps the owner performs to set up an external service, and what the agent needs back.
+  - [Source template](templates/source/_page.md) — A wiki page for one source in raw/: what it is and what the wiki took from it.
+  - [Ticket template](templates/ticket/_page.md) — A unit of work: one observable outcome, linked to the atoms it implements.
+  - [Tool template](templates/tool/_page.md) — A script or command agents can install and run, documented next to its code.

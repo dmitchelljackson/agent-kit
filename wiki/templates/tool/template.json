@@ -1,0 +1,39 @@
+{
+  "description": "A script or command agents can install and run, documented next to its code.",
+  "path": "tools/{slug}",
+  "fields": {
+    "entry": {
+      "type": "string",
+      "required": true,
+      "help": "the command to run, relative to the project root"
+    },
+    "requires": {
+      "type": "string",
+      "multiple": true,
+      "help": "runtimes and CLIs, e.g. node>=20, gh"
+    },
+    "platforms": {
+      "type": "enum",
+      "values": [
+        "mac",
+        "linux",
+        "windows"
+      ],
+      "multiple": true
+    },
+    "verified": {
+      "type": "enum",
+      "values": [
+        "no",
+        "yes"
+      ],
+      "default": "no"
+    },
+    "what": {
+      "type": "text",
+      "into": "atom",
+      "required": true,
+      "atom_title": "What it does"
+    }
+  }
+}

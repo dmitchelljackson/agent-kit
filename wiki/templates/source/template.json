@@ -1,0 +1,50 @@
+{
+  "description": "A source in raw/ (article, conversation, design export, doc): what it is and what the wiki took from it.",
+  "path": "sources/{slug}",
+  "fields": {
+    "kind": {
+      "type": "enum",
+      "values": [
+        "article",
+        "conversation",
+        "design",
+        "doc",
+        "spec",
+        "code",
+        "other"
+      ],
+      "required": true
+    },
+    "raw": {
+      "type": "string",
+      "help": "path under raw/ if the source was captured"
+    },
+    "url": {
+      "type": "string"
+    },
+    "conversation_id": {
+      "type": "string"
+    },
+    "captured": {
+      "type": "date",
+      "help": "when it was captured"
+    },
+    "ingested": {
+      "type": "enum",
+      "values": [
+        "no",
+        "yes",
+        "pointer"
+      ],
+      "default": "no",
+      "help": "pointer: only a link/ID exists"
+    },
+    "about": {
+      "type": "text",
+      "into": "atom",
+      "required": true,
+      "atom_title": "What it is",
+      "help": "one or two sentences"
+    }
+  }
+}

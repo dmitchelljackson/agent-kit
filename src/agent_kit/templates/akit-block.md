@@ -10,6 +10,11 @@ needs, update the wiki in the same change and log it with `akit log <op> "<subje
 Create and restructure atoms only through `akit atom ...` (it generates IDs and keeps
 embeds intact); edit atom content directly in the file. Full conventions: `akit read {{WIKI}}/agent-kit`.
 
+Don't repeat yourself: every fact lives in one atom; embed or link it, never copy it. Before making a
+page of a known shape, check `akit new --help` and use the template (its `--help` prints the fields and
+rules). When you've written the same shape of page three times, make a template
+(`akit template new <name> --from <page>`) and bring the existing pages up to spec in the same change.
+
 ### Bookmarks
 
 Bookmarks are skills that point into the wiki. Each fires at a specific moment

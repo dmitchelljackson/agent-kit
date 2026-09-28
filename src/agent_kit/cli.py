@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, adapters, bookmarks, judge, kit
+from . import templates as tp
 from . import frontmatter as fm
 from .config import SHARE_FILE, SHARE_MODES, AkitError, Project, effective_share_mode, find_project
 from . import protect
@@ -51,6 +52,7 @@ def cmd_init(a):
     if not a.no_install:
         print("\nInstalling agent-kit conventions from the kit...")
         print("\n".join(kit.install(project, ["agent-kit"], recursive=True)))
+        print("\n".join(kit.install(project, ["templates/source"], recursive=False)))
     w = Wiki(project.wiki)
     print("\n".join(bookmarks.sync(project, w)))
     w.write_index()
@@ -111,6 +113,59 @@ def cmd_atom_rm(a):
         print(f"note: {l} still links to it (plain [[link]]); fix the prose")
 
 
+def cmd_new(a):
+    _, w = _ctx()
+    tpl = tp.load(w, a.template_name)
+    values = {name: getattr(a, name, None) for name in tpl.fields}
+    d = tp.create(w, tpl, a.title, values, getattr(a, "key", None))
+    w.write_index()
+    doc = fm.load(d / PAGE)
+    w.append_log("new", f"{tpl.name}: {doc.meta.get('key', '') + ' ' if doc.meta.get('key') else ''}{a.title}")
+    print(f"{doc.meta.get('key', '-')}  {w.rel(d)}")
+    print(f"Next: fill in the page body (`akit read {w.rel(d)}`), following `akit new {tpl.name} --help`.")
+
+
+def cmd_set(a):
+    _, w = _ctx()
+    d, changed = tp.set_fields(w, a.ref, a.assignments)
+    w.write_index()
+    w.append_log("set", f"{w.rel(d)}: " + ", ".join(f"{k}={v}" for k, v in changed.items()))
+    print(f"{w.rel(d)}: " + ", ".join(f"{k}={v or '(cleared)'}" for k, v in changed.items()))
+
+
+def cmd_ls(a):
+    _, w = _ctx()
+    tpl = tp.load(w, a.template_name)
+    cols = [c.strip() for c in a.fields.split(",")] if a.fields else [n for n, f in tpl.fields.items() if not f.is_atom][:4]
+    rows = tp.query(w, a.template_name, a.where or [])
+    head = ["key", "title", *cols, "page"]
+    table = [[d.meta.get("key", "-"), d.title, *[d.meta.get(c, "") for c in cols], w.rel(d.path.parent)] for d in rows]
+    widths = [min(max([len(h)] + [len(r[i]) for r in table]), 48) for i, h in enumerate(head)]
+    print("  ".join(h.ljust(widths[i]) for i, h in enumerate(head)))
+    for r in table:
+        print("  ".join(c[:48].ljust(widths[i]) for i, c in enumerate(r)))
+    print(f"\n{len(rows)} {tpl.name} page(s)")
+
+
+def cmd_template_ls(a):
+    _, w = _ctx()
+    tpls = tp.all_templates(w)
+    if not tpls:
+        print("No templates. Install some with `akit install templates -r`, or make one with `akit template new`.")
+    for name, t in tpls.items():
+        print(f"{name:12} {len(tp.pages_of(w, name)):3} page(s)  {t.description}")
+
+
+def cmd_template_new(a):
+    _, w = _ctx()
+    d = tp.from_page(w, a.name, w.page_dir(a.from_page), a.description or "")
+    w.write_index()
+    w.append_log("template", f"{d.name} from {a.from_page}")
+    print(f"created {w.rel(d)}")
+    print("Next: give each field in template.json a real type/help, write the rules as atoms on the template page,\n"
+          "turn the _skeleton atoms into guidance, then bring existing pages of this shape up to spec (`akit check`).")
+
+
 def cmd_index(a):
     _, w = _ctx()
     print(w.rel(w.write_index()))
@@ -118,7 +173,7 @@ def cmd_index(a):
 
 def cmd_check(a):
     p, w = _ctx()
-    probs = [str(x) for x in w.check()]
+    probs = [str(x) for x in w.check()] + [str(x) for x in tp.validate(w)]
     probs += [f"ERROR bookmarks: {s}" for s in bookmarks.stale(p, w)]
     for line in probs:
         print(line)
@@ -328,7 +383,44 @@ def cmd_judge(a):
 
 # ---------------- parser ----------------
 
-def build_parser() -> argparse.ArgumentParser:
+def _add_template_commands(new_sub) -> None:
+    """One `akit new <template>` subcommand per template, built from its fields and rules."""
+    try:
+        w = Wiki(find_project().wiki)
+        tpls = tp.all_templates(w)
+    except AkitError:
+        return
+    for name, t in tpls.items():
+        s = new_sub.add_parser(name, help=t.description, epilog=tp.help_epilog(w, t),
+                               formatter_class=argparse.RawDescriptionHelpFormatter)
+        s.add_argument("title")
+        if t.key:
+            s.add_argument("--key", help=f"override the auto-assigned key (e.g. {t.key.get('prefix', '')}042)")
+        for f in t.fields.values():
+            kw: dict = {"dest": f.name}
+            bits = [f.help] if f.help else []
+            if f.type == "enum":
+                kw["choices"] = f.values
+            if f.type == "ref":
+                bits.append(f"a page key, atom id/name, or path{' (' + f.template + ' pages)' if f.template else ''}")
+            if f.type == "date":
+                kw["metavar"] = "YYYY-MM-DD"
+            if f.type == "bool":
+                kw["choices"] = ["yes", "no"]
+            if f.multiple:
+                kw["nargs"] = "+"
+            if f.required:
+                bits.append("REQUIRED")
+            if f.default is not None:
+                bits.append(f"default: {f.default}")
+            if f.is_atom:
+                bits.append("becomes an atom on the page")
+            kw["help"] = "; ".join(bits) or None
+            s.add_argument(f.flag, **kw)
+        s.set_defaults(fn=cmd_new, template_name=name)
+
+
+def build_parser(argv: list[str] | None = None) -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="akit", description="agent-kit: an atom-based wiki, bookmarks, and sharing for coding agents.")
     ap.add_argument("--version", action="version", version=f"akit {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -363,6 +455,26 @@ def build_parser() -> argparse.ArgumentParser:
     s = at.add_parser("move", help="move an atom to another page"); s.add_argument("ref"); s.add_argument("--page", required=True)
     s.set_defaults(fn=cmd_atom_move)
     s = at.add_parser("rm", help="delete an atom and its embeds"); s.add_argument("ref"); s.set_defaults(fn=cmd_atom_rm)
+
+    new = sub.add_parser("new", help="create a page from a template (`akit new --help` lists them)")
+    new_sub = new.add_subparsers(dest="template_name", required=True, metavar="TEMPLATE")
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["new"]:
+        _add_template_commands(new_sub)
+
+    s = sub.add_parser("set", help="set fields on a page made from a template: akit set T-030 status=READY")
+    s.add_argument("ref", help="page key (T-030), path, or name"); s.add_argument("assignments", nargs="+", metavar="field=value")
+    s.set_defaults(fn=cmd_set)
+
+    s = sub.add_parser("ls", help="list pages of a template: akit ls ticket --where status=READY")
+    s.add_argument("template_name", metavar="TEMPLATE"); s.add_argument("--where", action="append", metavar="field=value")
+    s.add_argument("--fields", help="comma list of columns"); s.set_defaults(fn=cmd_ls)
+
+    tm = sub.add_parser("template", help="templates: typed page shapes").add_subparsers(dest="sub", required=True)
+    tm.add_parser("ls", help="list templates").set_defaults(fn=cmd_template_ls)
+    s = tm.add_parser("new", help="make a template from an existing page")
+    s.add_argument("name"); s.add_argument("--from", dest="from_page", required=True, help="the page to generalize")
+    s.add_argument("--description"); s.set_defaults(fn=cmd_template_new)
 
     sub.add_parser("index", help="regenerate wiki/index.md").set_defaults(fn=cmd_index)
     sub.add_parser("check", help="lint the wiki and bookmarks").set_defaults(fn=cmd_check)
@@ -417,7 +529,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    args = build_parser(argv).parse_args(argv)
     try:
         args.fn(args)
     except AkitError as e:
